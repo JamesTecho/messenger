@@ -282,42 +282,58 @@ def connect():
 def request_history(data):
     target = data.get("target")
     user = current_user.username
+    before_id = data.get("before_id")
+    limit = 20
 
     if target == GLOBAL_CHAT_ROOM:
-        msgs = Message.query.filter_by(is_global=True).order_by(Message.timestamp.asc()).all()
+        query = Message.query.filter_by(is_global=True)
 
-        for m in msgs:
-            
-            text = decrypt_message(m.content, fernet)
+        if before_id:
+            query = query.filter(Message.id < before_id)
 
-        last_from_others = max((m.id for m in msgs if m.sender != user), default=0)
-        set_last_read(user, "global", last_from_others)
+        msgs = query.order_by(Message.id.desc()).limit(limit).all()
+        msgs.reverse()
+
+        if not before_id:
+            last_from_others = max((m.id for m in msgs if m.sender != user), default=0)
+            set_last_read(user, "global", last_from_others)
 
     else:
-        msgs = Message.query.filter(
-            ((Message.sender==user) & (Message.recipient==target)) |
-            ((Message.sender==target) & (Message.recipient==user))
-        ).filter_by(is_global=False).order_by(Message.timestamp.asc()).all()
+        query = Message.query.filter(
+            ((Message.sender == user) & (Message.recipient == target)) |
+            ((Message.sender == target) & (Message.recipient == user))
+        ).filter_by(is_global=False)
 
-        last_from_target = max((m.id for m in msgs if m.sender == target), default=0)
-        set_last_read(user, target, last_from_target)
+        if before_id:
+            query = query.filter(Message.id < before_id)
 
+        msgs = query.order_by(Message.id.desc()).limit(limit).all()
+        msgs.reverse()
 
-        for m in msgs:
+        if not before_id:
+            last_from_target = max((m.id for m in msgs if m.sender == target), default=0)
+            set_last_read(user, target, last_from_target)
 
-            text = decrypt_message(m.content, fernet)
+    history = []
+    for m in msgs:
+        try:
+            decrypted = decrypt_message(m.content, fernet)
+            history.append({
+                "id": m.id,
+                "msg": f"{m.sender}: {decrypted}",
+                "is_global": m.is_global
+            })
+        except Exception as e:
+            print("Decrypt error:", e)
 
+    emit("history", {
+        "messages": history,
+        "target": target,
+        "has_more": len(msgs) == limit
+    }, room=request.sid)
 
-
-    try:
-
-        history = [{"msg": f"{m.sender}: {decrypt_message(m.content, fernet)}", "is_global": m.is_global} for m in msgs]
-    except Exception as e:
-        print(f"Error preparing message history: {e}")
-        history = []
-
-    emit("history", {"messages": history, "target": target}, room=request.sid)
     emit("unread_counts", get_unread_counts(user, current_open=target), room=request.sid)
+
 
 
 @socketio.on("store_and_send")

@@ -150,6 +150,14 @@ body {
     border-bottom: 1px solid #ccc;
 }
 
+#chat div {
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+
 #msgForm {
     display: flex;
 }
@@ -314,6 +322,9 @@ var chat = document.getElementById("chat");
 var msgInput = document.getElementById("msg");
 var userName = document.getElementById("current-user").textContent;
 var currentTarget = "global_chat";
+var oldestMessageId = null;
+var hasMoreHistory = true;
+var isLoadingHistory = false;
 
 document.getElementById("create-invite").onclick = function() {
     var username = document.getElementById("new-username").value;
@@ -387,9 +398,14 @@ socket.on("registered_users", function(users) {
                 currentTarget = u;
                 document.querySelectorAll("#sidebar li, #dm-users li").forEach(x=>x.classList.remove("active"));
                 li.classList.add("active");
+
                 chat.innerHTML = "";
-                socket.emit("request_history", {target: currentTarget});
+                oldestMessageId = null;
+                hasMoreHistory = true;
+
+                socket.emit("request_history", { target: currentTarget });
             };
+
             list.appendChild(li);
         }
     });
@@ -397,23 +413,59 @@ socket.on("registered_users", function(users) {
 
 document.querySelector('#sidebar li[data-target="global_chat"]').onclick = function(){
     currentTarget = "global_chat";
-    document.querySelectorAll("#sidebar li, #dm-users li").forEach(x=>x.classList.remove("active"));
+
+    document.querySelectorAll("#sidebar li, #dm-users li")
+        .forEach(x => x.classList.remove("active"));
+
     this.classList.add("active");
     chat.innerHTML = "";
-    socket.emit("request_history", {target: currentTarget});
+    oldestMessageId = null;
+    hasMoreHistory = true;
+
+    socket.emit("request_history", { target: currentTarget });
 };
 
 socket.on("history", function(data){
-    if(data.target == currentTarget){
-        data.messages.forEach(function(msg){
-            addMessage(msg.msg);
+    if (data.target !== currentTarget) return;
+
+    const previousScrollHeight = chat.scrollHeight;
+    const previousScrollTop = chat.scrollTop;
+
+    data.messages.forEach(function(msg){
+        var div = document.createElement("div");
+        div.textContent = msg.msg;
+        chat.insertBefore(div, chat.firstChild);
+        oldestMessageId = msg.id;
+    });
+
+    hasMoreHistory = data.has_more;
+
+    if (previousScrollTop === 0) {
+        const newScrollHeight = chat.scrollHeight;
+        chat.scrollTop = newScrollHeight - previousScrollHeight;
+    } else if (!oldestMessageId) {
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    isLoadingHistory = false;
+});
+
+
+chat.addEventListener("scroll", function(){
+    if(chat.scrollTop === 0 && hasMoreHistory && !isLoadingHistory){
+        isLoadingHistory = true;
+        socket.emit("request_history", {
+            target: currentTarget,
+            before_id: oldestMessageId
         });
     }
 });
 
 socket.on("live_message", function(data){
-    if((data.is_global && currentTarget=="global_chat") || 
-       (!data.is_global && (data.sender==currentTarget || data.recipient==currentTarget))){
+    if(
+        (data.is_global && currentTarget == "global_chat") ||
+        (!data.is_global && (data.sender == currentTarget || data.recipient == currentTarget))
+    ){
         addMessage(data.msg);
     }
 });
