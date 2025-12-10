@@ -1,0 +1,20 @@
+<html>
+    <head>
+        <title>Set Password</title>
+        <style>
+            body { font-family: Arial; display:flex; justify-content:center; align-items:center; height:100vh; background:#f4f4f4; }
+            .box { background:white; padding:30px; border-radius:8px; width:300px; box-shadow:0 0 10px rgba(0,0,0,0.2); }
+            input, button { width:100%; padding:10px; margin-top:10px; }
+            button { background:#007bff; color:white; border:none; cursor:pointer; }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <h3>Set password for {{ user }}</h3>
+            <form method="POST">
+                <input type="password" name="password" placeholder="New password" required>
+                <button type="submit">Activate Account</button>
+            </form>
+        </div>
+    </body>
+    </html>

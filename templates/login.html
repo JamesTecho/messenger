@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Login</title>
+<style>
+body { font-family: Arial; display:flex; justify-content:center; align-items:center; height:100vh; background:#f4f4f4; }
+.login-box { background:white; padding:30px; border-radius:8px; box-shadow:0 0 15px rgba(0,0,0,0.1); width:300px; }
+.login-box h2 { text-align:center; }
+.login-box input,
+.login-box button,
+.flash { width:100%; box-sizing:border-box; padding:10px; margin:10px 0; }
+.login-box button { background:#007bff; color:white; border:none; cursor:pointer; }
+.login-box button:hover { background:#0056b3; }
+.flash { background:#f8d7da; }
+</style>
+</head>
+<body>
+<div class="login-box">
+<h2>Login</h2>
+
+{% for msg in get_flashed_messages() %}
+<div class="flash">{{ msg }}</div>
+{% endfor %}
+
+<form method="POST">
+<input name="username" placeholder="Username" required>
+<input name="password" type="password" placeholder="Password" required>
+<button type="submit">Login</button>
+</form>
+</div>
+</body>
+</html>

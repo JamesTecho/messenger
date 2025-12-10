@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NULS Revision Techniques</title>
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    padding: 20px;
+    background: #f4f4f4;
+}
+
+#top-bar {
+    display: flex;
+    justify-content: space-between;  
+    align-items: center;             
+    padding: 10px 20px;
+    background-color: #f5f5f5;
+    height: 60px;                    
+    box-sizing: border-box;
+}
+
+#top-right {
+    display: flex;
+    gap: 10px;                       
+    align-items: center;             
+}
+
+#top-right a, #top-right button {
+    height: 36px;                 
+    min-width: 80px;              
+    padding: 0 12px;             
+    font-size: 14px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: normal;
+    cursor: pointer;
+}
+
+#admin-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+#tos-link {
+    background-color: #6c757d;
+    color: white;
+}
+
+#logout-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+
+
+
+#main {
+    display: flex;
+    height: 85vh;
+    background: white;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+
+#sidebar {
+    width: 240px;
+    border-right: 1px solid #ccc;
+    padding: 10px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+}
+
+
+#sidebar > ul:first-of-type {
+    margin: 0 0 12px 0;
+    padding: 0;
+    list-style: none;
+    flex: 0 0 auto; 
+}
+
+
+#sidebar h4 {
+    margin: 0 0 8px 0;
+    flex: 0 0 auto;
+}
+
+
+#dm-users {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex: 1 1 auto; 
+}
+
+
+#dm-users li {
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#sidebar li {
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+#sidebar li:hover {
+    background: #e6e6e6;
+}
+
+#sidebar li.active {
+    background: #007bff;
+    color: white;
+}
+
+#chat-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#chat {
+    flex-grow: 1;
+    padding: 10px;
+    overflow-y: auto;
+    background: #f9f9f9;
+    border-bottom: 1px solid #ccc;
+}
+
+#msgForm {
+    display: flex;
+}
+
+#msg {
+    flex-grow: 1;
+    padding: 12px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+}
+
+#msgForm button {
+    padding: 12px 20px;
+    background: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+#msgForm button:hover {
+    background: #0056b3;
+}
+
+.badge {
+    background: red;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: 5px;
+    display: inline-block;
+    min-width: 16px;
+    text-align: center;
+}
+
+
+#tos-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+#tos-content {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    width: 80%;
+    max-width: 600px;
+    height: 80%;
+    overflow-y: auto;
+    position: relative;
+}
+
+#tos-content h3 {
+    margin-top: 0;
+}
+
+#tos-close {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#tos-close:hover {
+    background: #c82333;
+}
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+    <span>Logged in as <b id="current-user">{{ current_user.username }}</b></span>
+    <div id="top-right">
+        {% if is_user_admin %} 
+        <a id="admin-btn" href="/admin" class="btn">Admin</a>
+        {% endif %}
+        <a href="#" id="tos-link">Terms of Service</a>
+        <a href="/logout" id="logout-btn">Logout</a>
+    </div>
+</div>
+
+<div id="main">
+    <div id="sidebar">
+        <ul>
+            <li class="active" data-target="global_chat">
+                Global Chat <span class="badge" id="global-badge" style="display:none;"></span>
+            </li>
+        </ul>
+        <h4>DM Users</h4>
+        <ul id="dm-users"></ul>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat"></div>
+        <form id="msgForm">
+            <input id="msg" placeholder="Message" autocomplete="off">
+            <button>Send</button>
+        </form>
+    </div>
+</div>
+
+<!-- TOS Modal -->
+<div id="tos-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+    background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+    <div style="
+        background:white; 
+        padding:20px 30px; 
+        border-radius:8px; 
+        max-width:500px; 
+        width:auto;
+        height:auto;
+        max-height:90%;
+        overflow:auto;
+        position:relative;
+    ">
+        <h3>Terms of Service</h3>
+        <p>
+            Welcome to the NULS Revisions Techniques! By using this service, you agree not to misuse it, harass others, or attempt unauthorized access. Additionally, you must agree not to put tennis balls on James' head.
+        </p>
+        <p>
+            Violations may result in account suspension or banning.
+        </p>
+        <button id="tos-close" style="
+            position:absolute; 
+            top:10px; 
+            right:10px; 
+            padding:5px 10px; 
+            background:#ccc; 
+            border:none; 
+            border-radius:4px; 
+            cursor:pointer;
+        ">Close</button>
+    </div>
+</div>
+
+
+
+<div id="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center;">
+  <div style="background:white; padding:30px; border-radius:10px; width:400px;">
+    <h3>Create Invite Account</h3>
+    <input type="text" id="new-username" name="username" placeholder="New username">
+    <button id="create-invite">Create Invite</button>
+    <button onclick="document.getElementById('admin-modal').style.display='none'">Close</button>
+    <div id="invite-output" style="margin-top:10px; word-break:break-all; font-size:13px;"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+var socket = io();
+var chat = document.getElementById("chat");
+var msgInput = document.getElementById("msg");
+var userName = document.getElementById("current-user").textContent;
+var currentTarget = "global_chat";
+
+document.getElementById("create-invite").onclick = function() {
+    var username = document.getElementById("new-username").value;
+
+    if (!username) {
+        alert("Enter a username");
+        return;
+    }
+
+    fetch("/admin/create_invite", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "username=" + encodeURIComponent(username)
+    })
+    .then(res => res.text())
+    .then(data => {
+        if (data.startsWith("/invite/")) {
+            document.getElementById("invite-output").textContent = location.origin + data;
+        } else {
+            alert(data);
+        }
+    });
+};
+
+function addMessage(text){
+    var div = document.createElement("div");
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function updateBadges(counts){
+    var globalBadge = document.getElementById("global-badge");
+    if(counts.global > 0){
+        globalBadge.textContent = counts.global;
+        globalBadge.style.display = "inline-block";
+    } else {
+        globalBadge.style.display = "none";
+    }
+
+    document.querySelectorAll("#dm-users li").forEach(function(li){
+        var user = li.getAttribute("data-user");
+        var badge = li.querySelector(".badge");
+        if(counts[user] > 0){
+            badge.textContent = counts[user];
+            badge.style.display = "inline-block";
+        } else {
+            badge.style.display = "none";
+        }
+    });
+}
+
+// ---------------- SOCKET EVENTS ----------------
+socket.on("connect", function() {
+    console.log("CLIENT: connected, requesting initial global history and users");
+    socket.emit("get_users");
+    socket.emit("request_history", { target: currentTarget });
+});
+
+socket.on("registered_users", function(users) {
+    var list = document.getElementById("dm-users");
+    list.innerHTML = "";
+    users.forEach(function(u) {
+        if(u !== userName){
+            var li = document.createElement("li");
+            li.setAttribute("data-user", u);
+            li.innerHTML = u + ' <span class="badge"></span>';
+            li.onclick = function(){
+                currentTarget = u;
+                document.querySelectorAll("#sidebar li, #dm-users li").forEach(x=>x.classList.remove("active"));
+                li.classList.add("active");
+                chat.innerHTML = "";
+                socket.emit("request_history", {target: currentTarget});
+            };
+            list.appendChild(li);
+        }
+    });
+});
+
+document.querySelector('#sidebar li[data-target="global_chat"]').onclick = function(){
+    currentTarget = "global_chat";
+    document.querySelectorAll("#sidebar li, #dm-users li").forEach(x=>x.classList.remove("active"));
+    this.classList.add("active");
+    chat.innerHTML = "";
+    socket.emit("request_history", {target: currentTarget});
+};
+
+socket.on("history", function(data){
+    if(data.target == currentTarget){
+        data.messages.forEach(function(msg){
+            addMessage(msg.msg);
+        });
+    }
+});
+
+socket.on("live_message", function(data){
+    if((data.is_global && currentTarget=="global_chat") || 
+       (!data.is_global && (data.sender==currentTarget || data.recipient==currentTarget))){
+        addMessage(data.msg);
+    }
+});
+
+socket.on("unread_counts", function(counts){
+    updateBadges(counts);
+});
+
+document.getElementById("msgForm").onsubmit = function(e){
+    e.preventDefault();
+    if(msgInput.value.trim() === "") return;
+    socket.emit("store_and_send", {msg: msgInput.value, target: currentTarget});
+    msgInput.value = "";
+};
+
+// ---------------- TOS MODAL ----------------
+document.getElementById("tos-link").onclick = function(e){
+    e.preventDefault();
+    document.getElementById("tos-modal").style.display = "flex";
+};
+document.getElementById("tos-close").onclick = function(){
+    document.getElementById("tos-modal").style.display = "none";
+};
+</script>
+
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 20px;
+            color: #333;
+        }
+
+        h1, h3 {
+            margin-bottom: 10px;
+        }
+
+        ul#user-list {
+            padding: 0;
+            margin: 0 auto;
+            list-style: none;
+            display: inline-block;
+        }
+
+        ul#user-list li {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #fff;
+            color: #000;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            min-width: 350px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .user-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .user-row .banned {
+            color: red;
+            font-weight: bold;
+        }
+
+        .user-row .reason {
+            color: #555;
+        }
+
+        .user-actions {
+            margin-left: auto; 
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .user-actions input[type="text"] {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            min-width: 120px;
+        }
+
+        button {
+            padding: 5px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #fff;
+            font-weight: bold;
+            transition: background 0.2s;
+            background-color: #007bff;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        input:disabled {
+            background-color: #eee;
+            color: #888;
+        }
+
+        #chat {
+            padding: 5px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: #fff;
+            font-weight: bold;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+
+        #chat:hover {
+            background-color: #0056b3;
+        }
+
+        .invite-link input {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+
+        .invite-link button {
+            padding: 5px 12px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Admin Panel</h1>
+
+<h3>Create Invite</h3>
+<form method="POST" action="/admin/create_invite" id="create-invite-form">
+    <input name="username" placeholder="New username" required>
+    <button type="submit">Create Invite</button>
+</form>
+
+<div id="new-invite-container" style="display:none; margin-top:10px;">
+    <div class="invite-link">
+        <input type="text" id="new-invite-link" readonly onclick="this.select();">
+        <button id="copy-invite">Copy Link</button>
+    </div>
+</div>
+
+<h3>Users</h3>
+<ul id="user-list">
+    {% for user, data in users.items() %}
+        <li>
+            <div class="user-row">
+                <span class="username">{{ user }}</span>
+
+                <div class="user-actions">
+                    {% if not data.get("password") %}
+                        <div class="invite-link">
+                            <input type="text" value="https://m.ju-s.uk/invite/{{ data.get('invite') }}" readonly onclick="this.select();">
+                        </div>
+                    {% endif %}
+
+                    {% if user != current_user.username and data.get("role") != "admin" %}
+                        {% if not data.get("banned", {}).get("status") %}
+                            <form method="POST" action="/admin/toggle_ban/{{ user }}">
+                                <input type="text" name="reason" placeholder="Ban reason">
+                                <button type="submit">Ban</button>
+                            </form>
+                        {% else %}
+                            <form method="POST" action="/admin/toggle_ban/{{ user }}">
+                                <button type="submit">Unban</button>
+                            </form>
+                        {% endif %}
+
+                        <form method="POST" action="/admin/reset_user/{{ user }}">
+                            <button type="submit">Reset</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </li>
+    {% endfor %}
+</ul>
+
+<br><br>
+<button id="chat">Back to Chat</button>
+
+<script>
+    document.getElementById('chat').addEventListener('click', () => {
+        window.location.href = '/';
+    });
+
+    const form = document.getElementById('create-invite-form');
+    const container = document.getElementById('new-invite-container');
+    const linkInput = document.getElementById('new-invite-link');
+    const copyBtn = document.getElementById('copy-invite');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const username = formData.get('username');
+
+        const res = await fetch('/admin/create_invite', {
+            method: 'POST',
+            body: new URLSearchParams({username})
+        });
+
+        if (res.ok) {
+            const inviteLink = await res.text();
+            linkInput.value = window.location.origin + inviteLink;
+            container.style.display = 'flex';
+        } else {
+            alert(await res.text());
+        }
+    });
+
+    copyBtn.addEventListener('click', () => {
+        linkInput.select();
+        linkInput.setSelectionRange(0, 99999);
+        document.execCommand("copy");
+        alert("Copied!");
+    });
+</script>
+
+</body>
+</html>
