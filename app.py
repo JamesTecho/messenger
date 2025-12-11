@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 import shutil
-from datetime import date
+from datetime import date, datetime, timezone
 
 from flask import Flask, render_template, request, redirect, flash, url_for
 from flask_socketio import SocketIO, emit, join_room
@@ -282,59 +282,65 @@ def connect():
 def request_history(data):
     target = data.get("target")
     user = current_user.username
-    before_id = data.get("before_id")
+    before_id = data.get("before_id")  # optional, for pagination
     limit = 20
 
     if target == GLOBAL_CHAT_ROOM:
         query = Message.query.filter_by(is_global=True)
-
         if before_id:
             query = query.filter(Message.id < before_id)
-
-        msgs = query.order_by(Message.id.desc()).limit(limit).all()
-        msgs.reverse()
-
-        if not before_id:
-            last_from_others = max((m.id for m in msgs if m.sender != user), default=0)
-            set_last_read(user, "global", last_from_others)
-
+        msgs = query.order_by(Message.timestamp.desc()).limit(limit).all()
     else:
         query = Message.query.filter(
             ((Message.sender == user) & (Message.recipient == target)) |
             ((Message.sender == target) & (Message.recipient == user))
         ).filter_by(is_global=False)
-
         if before_id:
             query = query.filter(Message.id < before_id)
+        msgs = query.order_by(Message.timestamp.desc()).limit(limit).all()
 
-        msgs = query.order_by(Message.id.desc()).limit(limit).all()
-        msgs.reverse()
-
-        if not before_id:
-            last_from_target = max((m.id for m in msgs if m.sender == target), default=0)
-            set_last_read(user, target, last_from_target)
+    msgs.reverse()  # oldest first
 
     history = []
+    last_from_others = 0
     for m in msgs:
-        try:
-            decrypted = decrypt_message(m.content, fernet)
-            history.append({
-                "id": m.id,
-                "msg": f"{m.sender}: {decrypted}",
-                "is_global": m.is_global
-            })
-        except Exception as e:
-            print("Decrypt error:", e)
+        if target == GLOBAL_CHAT_ROOM and m.sender != user:
+            last_from_others = max(last_from_others, m.id)
+        elif target != GLOBAL_CHAT_ROOM and m.sender == target:
+            last_from_others = max(last_from_others, m.id)
 
-    emit("history", {
-        "messages": history,
-        "target": target,
-        "has_more": len(msgs) == limit
-    }, room=request.sid)
+        # format timestamp to UK local time with HH:MM
+        timestamp = m.timestamp.strftime("%H:%M")
+        date_header = m.timestamp.strftime("%Y-%m-%d")
+        history.append({
+            "id": m.id,
+            "msg": f"{m.sender}: {decrypt_message(m.content, fernet)}",
+            "is_global": m.is_global,
+            "timestamp": m.timestamp.isoformat(),
+            "date": m.timestamp.strftime("%Y-%m-%d")
+        })
 
+    if target == GLOBAL_CHAT_ROOM:
+        set_last_read(user, "global", last_from_others)
+    else:
+        set_last_read(user, target, last_from_others)
+
+    # determine if more messages exist
+    has_more = False
+    if msgs:
+        oldest_id = msgs[0].id
+        remaining = Message.query.filter(Message.id < oldest_id)
+        if target == GLOBAL_CHAT_ROOM:
+            remaining = remaining.filter_by(is_global=True)
+        else:
+            remaining = remaining.filter(
+                ((Message.sender == user) & (Message.recipient == target)) |
+                ((Message.sender == target) & (Message.recipient == user))
+            ).filter_by(is_global=False)
+        has_more = remaining.count() > 0
+
+    emit("history", {"messages": history, "target": target, "has_more": has_more}, room=request.sid)
     emit("unread_counts", get_unread_counts(user, current_open=target), room=request.sid)
-
-
 
 @socketio.on("store_and_send")
 def store(data):
@@ -343,9 +349,22 @@ def store(data):
     sender = current_user.username
     is_global = target == GLOBAL_CHAT_ROOM
     encrypted = encrypt_message(msg)
-    db.session.add(Message(sender=sender, recipient=target, content=encrypted, is_global=is_global))
+    
+    timestamp = datetime.now(timezone.utc)
+    message = Message(sender=sender, recipient=target, content=encrypted, is_global=is_global, timestamp=timestamp)
+    db.session.add(message)
     db.session.commit()
-    live = {"msg": f"{sender}: {msg}", "sender": sender, "recipient": target, "is_global": is_global}
+
+
+    live = {
+        "msg": f"{sender}: {msg}",
+        "sender": sender,
+        "recipient": target,
+        "is_global": is_global,
+        "timestamp": timestamp.isoformat(),
+        "date": timestamp.date().isoformat()  # THIS IS IMPORTANT
+    }
+
 
     if is_global:
         emit("live_message", live, room=GLOBAL_CHAT_ROOM)
