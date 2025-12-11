@@ -389,7 +389,7 @@ if __name__ == "__main__":
     try:
 
         print("Starting server on https://m.ju-s.uk")
-        socketio.run(app, host="0.0.0.0", port=5001)
+        socketio.run(app, host="0.0.0.0", port=5000)
     except KeyboardInterrupt:
         print("Server stopped by user.")
     except:
