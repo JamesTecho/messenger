@@ -4,5 +4,4 @@ flask_secret.key
 instance/
 db_backups/
 __pycache__/
-keys.py
 users.json
