@@ -261,6 +261,7 @@ body {
     </div>
 
     <div id="chat-container">
+        <button id="load-more-btn" style="display:none; width:100%;">Load older messages</button>
         <div id="chat"></div>
         <form id="msgForm">
             <input id="msg" placeholder="Message" autocomplete="off">
@@ -325,6 +326,7 @@ var currentTarget = "global_chat";
 var oldestMessageId = null;
 var hasMoreHistory = true;
 var isLoadingHistory = false;
+var loadMoreBtn = document.getElementById("load-more-btn");
 
 document.getElementById("create-invite").onclick = function() {
     var username = document.getElementById("new-username").value;
@@ -379,6 +381,15 @@ function updateBadges(counts){
     });
 }
 
+function checkShowLoadMore() {
+    // Show the button if chat is not scrollable and there is more history
+    if (chat.scrollHeight <= chat.clientHeight && hasMoreHistory && chat.children.length > 0) {
+        loadMoreBtn.style.display = "block";
+    } else {
+        loadMoreBtn.style.display = "none";
+    }
+}
+
 // ---------------- SOCKET EVENTS ----------------
 socket.on("connect", function() {
     console.log("CLIENT: connected, requesting initial global history and users");
@@ -409,6 +420,7 @@ socket.on("registered_users", function(users) {
             list.appendChild(li);
         }
     });
+    checkShowLoadMore();
 });
 
 document.querySelector('#sidebar li[data-target="global_chat"]').onclick = function(){
@@ -423,6 +435,7 @@ document.querySelector('#sidebar li[data-target="global_chat"]').onclick = funct
     hasMoreHistory = true;
 
     socket.emit("request_history", { target: currentTarget });
+    checkShowLoadMore();
 };
 
 socket.on("history", function(data){
@@ -430,24 +443,50 @@ socket.on("history", function(data){
 
     const previousScrollHeight = chat.scrollHeight;
     const previousScrollTop = chat.scrollTop;
+    const wasEmpty = (chat.children.length === 0);
+    const initialLoad = (oldestMessageId === null);
 
-    data.messages.forEach(function(msg){
-        var div = document.createElement("div");
-        div.textContent = msg.msg;
-        chat.insertBefore(div, chat.firstChild);
-        oldestMessageId = msg.id;
-    });
+    // Messages from the server are in chronological order (oldest -> newest).
+    // On the initial load we should append them to the bottom so newest is last.
+    // When loading older messages (pagination), we should prepend them to the top.
+    if (initialLoad) {
+        // Append messages in order
+        data.messages.forEach(function(msg){
+            var div = document.createElement("div");
+            div.textContent = msg.msg;
+            chat.appendChild(div);
+        });
+        if (data.messages.length > 0) {
+            // oldestMessageId should point to the earliest (top) message's id
+            oldestMessageId = data.messages[0].id;
+        }
+    } else {
+        // Prepend older messages so they appear above the existing ones
+        data.messages.forEach(function(msg){
+            var div = document.createElement("div");
+            div.textContent = msg.msg;
+            chat.insertBefore(div, chat.firstChild);
+        });
+        if (data.messages.length > 0) {
+            // Update oldestMessageId to the new topmost message
+            oldestMessageId = data.messages[0].id;
+        }
+    }
 
     hasMoreHistory = data.has_more;
 
-    if (previousScrollTop === 0) {
+    // Maintain scroll position:
+    if (initialLoad) {
+        // On initial load, scroll to bottom to show latest messages
+        chat.scrollTop = chat.scrollHeight;
+    } else {
+        // When prepending older messages, keep the user's viewport stable
         const newScrollHeight = chat.scrollHeight;
         chat.scrollTop = newScrollHeight - previousScrollHeight;
-    } else if (!oldestMessageId) {
-        chat.scrollTop = chat.scrollHeight;
     }
 
     isLoadingHistory = false;
+    checkShowLoadMore();
 });
 
 
@@ -488,6 +527,16 @@ document.getElementById("tos-link").onclick = function(e){
 };
 document.getElementById("tos-close").onclick = function(){
     document.getElementById("tos-modal").style.display = "none";
+};
+
+loadMoreBtn.onclick = function() {
+    if (!isLoadingHistory && hasMoreHistory) {
+        isLoadingHistory = true;
+        socket.emit("request_history", {
+            target: currentTarget,
+            before_id: oldestMessageId
+        });
+    }
 };
 </script>
 
