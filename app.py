@@ -18,9 +18,10 @@ from login import login_manager, User
 from keys import SECRET_KEY, ENCRYPTION_KEY, fernet
 
 # ================== CONFIG ==================
-USER_FILE = "users.json"
-DB_FILE = r"C:\messenger\instance\chat_storage.db"
-BACKUP_DIR = "db_backups"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USER_FILE = os.path.join(BASE_DIR, "users.json")
+DB_FILE = os.path.join(BASE_DIR, "instance", "chat_storage.db")
+BACKUP_DIR = os.path.join(BASE_DIR, "db_backups")
 GLOBAL_CHAT_ROOM = "global_chat"
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
@@ -79,6 +80,7 @@ def login():
         password = request.form.get("password")
         users = load_users()
         matched_username = None
+        user_data = None
         for uname in users:
             if uname.lower() == username.lower():
                 matched_username = uname
@@ -91,7 +93,6 @@ def login():
                 return redirect("/")
 
         if user_data and isinstance(user_data, dict):
-           
             banned = user_data.get("banned")
             if banned:
                 if isinstance(banned, dict) and banned.get("status"):
@@ -270,7 +271,7 @@ def toggle_ban(username):
 
 # ================== SOCKET HANDLERS ==================
 @socketio.on("connect")
-def connect():
+def connect(auth=None):  # <-- Accepts optional auth argument
     if not current_user.is_authenticated:
         return
     ONLINE_USERS[current_user.username] = request.sid
@@ -364,6 +365,9 @@ def store(data):
 def get_users():
     emit("registered_users", list(load_users().keys()), room=request.sid)
     emit("unread_counts", get_unread_counts(current_user.username), room=request.sid)
+
+with app.app_context():
+    db.create_all()
 
 # ================== RUN ==================  
 if __name__ == "__main__":
