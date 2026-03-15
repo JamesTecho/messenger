@@ -610,6 +610,11 @@ function checkShowLoadMore() {
 
 // ---------------- SOCKET EVENTS ----------------
 socket.on("connect", function() {
+    // Reset on every (re)connect so reconnects don't prepend duplicate history
+    chat.innerHTML = "";
+    oldestMessageId  = null;
+    hasMoreHistory   = true;
+    isLoadingHistory = false;
     socket.emit("get_users");
     socket.emit("request_history", { target: currentTarget });
 });
