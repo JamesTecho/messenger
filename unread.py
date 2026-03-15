@@ -2,7 +2,7 @@
 
 from database import Message
 from utils import load_users
-from config import GLOBAL_CHAT_ROOM
+from config import GLOBAL_CHAT_ROOM, ANNOUNCEMENTS_ROOM
 
 LAST_READ = {} 
 
@@ -24,6 +24,16 @@ def get_unread_counts(user, current_open=None):
         ).count()
     else:
         counts["global"] = 0
+
+    if current_open != ANNOUNCEMENTS_ROOM:
+        counts["announcements"] = Message.query.filter_by(
+            is_global=False, recipient=ANNOUNCEMENTS_ROOM
+        ).filter(
+            Message.sender != user,
+            Message.id > get_last_read(user, "announcements")
+        ).count()
+    else:
+        counts["announcements"] = 0
 
     for u in load_users():
         if u == user:

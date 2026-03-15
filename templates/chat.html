@@ -315,8 +315,11 @@ body {
             <li class="active" data-target="global_chat">
                 Global Chat <span class="badge" id="global-badge" style="display:none;"></span>
             </li>
+            <li data-target="announcements">
+                Announcements <span class="badge" id="announce-badge" style="display:none;"></span>
+            </li>
         </ul>
-        <h4>DM Users</h4>
+        <h4>Contacts</h4>
         <ul id="dm-users"></ul>
     </div>
 
@@ -576,6 +579,15 @@ function updateBadges(counts) {
     } else {
         globalBadge.style.display = "none";
     }
+
+    var announceBadge = document.getElementById("announce-badge");
+    if (counts.announcements > 0) {
+        announceBadge.textContent = counts.announcements;
+        announceBadge.style.display = "inline-block";
+    } else {
+        announceBadge.style.display = "none";
+    }
+
     document.querySelectorAll("#dm-users li").forEach(function(li) {
         var user  = li.getAttribute("data-user");
         var badge = li.querySelector(".badge");
@@ -605,25 +617,39 @@ socket.on("connect", function() {
 socket.on("registered_users", function(users) {
     var list = document.getElementById("dm-users");
     list.innerHTML = "";
-    users.forEach(function(u) {
-        if (u !== userName) {
-            var li = document.createElement("li");
-            li.setAttribute("data-user", u);
-            li.innerHTML = u + ' <span class="badge"></span>';
-            li.onclick = function() {
-                currentTarget = u;
-                document.querySelectorAll("#sidebar li, #dm-users li").forEach(x => x.classList.remove("active"));
-                li.classList.add("active");
-                chat.innerHTML = "";
-                oldestMessageId = null;
-                hasMoreHistory  = true;
-                socket.emit("request_history", { target: currentTarget });
-            };
-            list.appendChild(li);
-        }
+    users.forEach(function(entry) {
+        var u = entry.username;
+        var contactName = entry.contact_name || "";
+        if (u === userName) return;
+        var li = document.createElement("li");
+        li.setAttribute("data-user", u);
+        var label = contactName ? contactName + " \u200B" : u;
+        li.innerHTML = (contactName
+            ? "<span style='font-weight:500'>" + contactName + "</span> <span style='font-size:11px;color:#999'>(" + u + ")</span>"
+            : u) + ' <span class="badge"></span>';
+        li.onclick = function() {
+            currentTarget = u;
+            document.querySelectorAll("#sidebar li, #dm-users li").forEach(x => x.classList.remove("active"));
+            li.classList.add("active");
+            chat.innerHTML = "";
+            oldestMessageId = null;
+            hasMoreHistory  = true;
+            socket.emit("request_history", { target: currentTarget });
+            setInputForChannel(currentTarget);
+        };
+        list.appendChild(li);
     });
     checkShowLoadMore();
 });
+
+function setInputForChannel(target) {
+    var isAnnounce = (target === "announcements");
+    var canPost = !isAnnounce || isAdmin;
+    msgInput.disabled   = !canPost;
+    document.getElementById("attach-btn").disabled = !canPost;
+    document.getElementById("send-btn").disabled   = !canPost;
+    msgInput.placeholder = isAnnounce && !isAdmin ? "Read-only — only admins can post announcements" : "Message";
+}
 
 document.querySelector('#sidebar li[data-target="global_chat"]').onclick = function() {
     currentTarget = "global_chat";
@@ -633,6 +659,19 @@ document.querySelector('#sidebar li[data-target="global_chat"]').onclick = funct
     oldestMessageId = null;
     hasMoreHistory  = true;
     socket.emit("request_history", { target: currentTarget });
+    setInputForChannel(currentTarget);
+    checkShowLoadMore();
+};
+
+document.querySelector('#sidebar li[data-target="announcements"]').onclick = function() {
+    currentTarget = "announcements";
+    document.querySelectorAll("#sidebar li, #dm-users li").forEach(x => x.classList.remove("active"));
+    this.classList.add("active");
+    chat.innerHTML = "";
+    oldestMessageId = null;
+    hasMoreHistory  = true;
+    socket.emit("request_history", { target: currentTarget });
+    setInputForChannel(currentTarget);
     checkShowLoadMore();
 };
 
@@ -689,7 +728,8 @@ chat.addEventListener("scroll", function() {
 socket.on("live_message", function(data) {
     if (
         (data.is_global && currentTarget === "global_chat") ||
-        (!data.is_global && (data.sender === currentTarget || data.recipient === currentTarget))
+        (data.recipient === "announcements" && currentTarget === "announcements") ||
+        (!data.is_global && data.recipient !== "announcements" && (data.sender === currentTarget || data.recipient === currentTarget))
     ) {
         addMessage(data.msg, data.timestamp, data.attachment);
     }

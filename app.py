@@ -26,6 +26,7 @@ DB_FILE = os.path.join(BASE_DIR, "instance", "chat_storage.db")
 BACKUP_DIR = os.path.join(BASE_DIR, "db_backups")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 GLOBAL_CHAT_ROOM = "global_chat"
+ANNOUNCEMENTS_ROOM = "announcements"
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024   # 8 MB
 MAX_FILE_BYTES  = 20 * 1024 * 1024  # 20 MB
@@ -279,6 +280,19 @@ def toggle_ban(username):
     return redirect(url_for("admin_panel"))
 
 
+@app.route("/admin/set_contact/<username>", methods=["POST"])
+@login_required
+def set_contact(username):
+    if not is_admin():
+        return "Forbidden", 403
+    users = load_users()
+    if username not in users:
+        return "User not found", 404
+    users[username]["contact_name"] = request.form.get("contact_name", "").strip()
+    save_users(users)
+    return "OK", 200
+
+
 # ================== FILE UPLOAD / SERVE ==================
 @app.route("/upload", methods=["POST"])
 @login_required
@@ -352,7 +366,10 @@ def connect(auth=None):  # <-- Accepts optional auth argument
         return
     ONLINE_USERS[current_user.username] = request.sid
     join_room(GLOBAL_CHAT_ROOM)
-    emit("registered_users", list(load_users().keys()), room=request.sid)
+    join_room(ANNOUNCEMENTS_ROOM)
+    users = load_users()
+    user_list = [{"username": u, "contact_name": d.get("contact_name", "")} for u, d in users.items()]
+    emit("registered_users", user_list, room=request.sid)
     emit("unread_counts", get_unread_counts(current_user.username), room=request.sid)
 
 @socketio.on("request_history")
@@ -374,6 +391,20 @@ def request_history(data):
         if not before_id:
             last_from_others = max((m.id for m in msgs if m.sender != user), default=0)
             set_last_read(user, "global", last_from_others)
+            CURRENT_OPEN[user] = target
+
+    elif target == ANNOUNCEMENTS_ROOM:
+        query = Message.query.filter_by(is_global=False, recipient=ANNOUNCEMENTS_ROOM)
+
+        if before_id:
+            query = query.filter(Message.id < before_id)
+
+        msgs = query.order_by(Message.id.desc()).limit(limit).all()
+        msgs.reverse()
+
+        if not before_id:
+            last_from_others = max((m.id for m in msgs if m.sender != user), default=0)
+            set_last_read(user, "announcements", last_from_others)
             CURRENT_OPEN[user] = target
 
     else:
@@ -442,6 +473,13 @@ def store(data):
     except (json.JSONDecodeError, KeyError, TypeError):
         pass
 
+    is_announcement = target == ANNOUNCEMENTS_ROOM
+
+    # Only admins can post announcements
+    if is_announcement and not is_admin():
+        emit("error", {"msg": "Only admins can post announcements"}, room=request.sid)
+        return
+
     # Enforce message length limit for non-admins and non-attachments
     if attachment is None and not is_admin() and len(msg) > MAX_MSG_CHARS:
         emit("error", {"msg": f"Message too long (max {MAX_MSG_CHARS} characters)"}, room=request.sid)
@@ -465,14 +503,22 @@ def store(data):
                 if CURRENT_OPEN.get(u) == GLOBAL_CHAT_ROOM:
                     set_last_read(u, "global", new_msg_id)
                 socketio.emit("unread_counts", get_unread_counts(u, current_open=CURRENT_OPEN.get(u)), room=sid)
+
+    elif is_announcement:
+        emit("live_message", live, room=ANNOUNCEMENTS_ROOM)
+        for u, sid in ONLINE_USERS.items():
+            if u != sender:
+                if CURRENT_OPEN.get(u) == ANNOUNCEMENTS_ROOM:
+                    set_last_read(u, "announcements", new_msg_id)
+                socketio.emit("unread_counts", get_unread_counts(u, current_open=CURRENT_OPEN.get(u)), room=sid)
+        socketio.emit("unread_counts", get_unread_counts(sender, current_open=CURRENT_OPEN.get(sender)), room=request.sid)
+
     else:
         recipient_sid = ONLINE_USERS.get(target)
         emit("live_message", live, room=request.sid)
-        # Sender is actively in this chat, keep their last_read current
         set_last_read(sender, target, new_msg_id)
         if recipient_sid:
             emit("live_message", live, room=recipient_sid)
-            # If recipient has this conversation open, mark it as read for them too
             if CURRENT_OPEN.get(target) == sender:
                 set_last_read(target, sender, new_msg_id)
             socketio.emit("unread_counts", get_unread_counts(target, current_open=CURRENT_OPEN.get(target)), room=recipient_sid)
@@ -480,7 +526,9 @@ def store(data):
 
 @socketio.on("get_users")
 def get_users():
-    emit("registered_users", list(load_users().keys()), room=request.sid)
+    users = load_users()
+    user_list = [{"username": u, "contact_name": d.get("contact_name", "")} for u, d in users.items()]
+    emit("registered_users", user_list, room=request.sid)
     emit("unread_counts", get_unread_counts(current_user.username), room=request.sid)
 
 with app.app_context():

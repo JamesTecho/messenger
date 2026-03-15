@@ -145,6 +145,13 @@
                         </div>
                     {% endif %}
 
+                    <div class="contact-name-form">
+                        <input type="text" class="contact-input" data-user="{{ user }}"
+                               value="{{ data.get('contact_name', '') }}"
+                               placeholder="Real name…">
+                        <button type="button" class="save-contact-btn" data-user="{{ user }}">Save</button>
+                    </div>
+
                     {% if user != current_user.username and data.get("role") != "admin" %}
                         {% if not data.get("banned", {}).get("status") %}
                             <form method="POST" action="/admin/toggle_ban/{{ user }}">
@@ -204,6 +211,20 @@
         linkInput.setSelectionRange(0, 99999);
         document.execCommand("copy");
         alert("Copied!");
+    });
+
+    document.querySelectorAll('.save-contact-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const username = btn.getAttribute('data-user');
+            const input = document.querySelector(`.contact-input[data-user="${username}"]`);
+            const res = await fetch(`/admin/set_contact/${encodeURIComponent(username)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'contact_name=' + encodeURIComponent(input.value)
+            });
+            btn.textContent = res.ok ? 'Saved ✓' : 'Error';
+            setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+        });
     });
 </script>
 
