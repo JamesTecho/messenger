@@ -1,15 +1,17 @@
 import os
 import json
+import re
 import uuid
 import shutil
 from datetime import date
 
-from flask import Flask, render_template, request, redirect, flash, url_for
+from flask import Flask, render_template, request, redirect, flash, url_for, jsonify, Response
 from flask_socketio import SocketIO, emit, join_room
 from flask_login import login_user, logout_user, current_user, login_required
 from passlib.context import CryptContext
 from cryptography.fernet import Fernet
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
 
 from utils import load_users, verify_password, encrypt_message, decrypt_message, is_admin, save_users
 from unread import get_last_read, set_last_read, get_unread_counts
@@ -22,7 +24,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_DIR, "users.json")
 DB_FILE = os.path.join(BASE_DIR, "instance", "chat_storage.db")
 BACKUP_DIR = os.path.join(BASE_DIR, "db_backups")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 GLOBAL_CHAT_ROOM = "global_chat"
+
+MAX_IMAGE_BYTES = 8 * 1024 * 1024   # 8 MB
+MAX_FILE_BYTES  = 20 * 1024 * 1024  # 20 MB
+MAX_MSG_CHARS   = 1000
+ALLOWED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+ALLOWED_IMAGE_EXTS  = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 ONLINE_USERS = {}
@@ -270,6 +279,72 @@ def toggle_ban(username):
     return redirect(url_for("admin_panel"))
 
 
+# ================== FILE UPLOAD / SERVE ==================
+@app.route("/upload", methods=["POST"])
+@login_required
+def upload_file():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    safe_name = secure_filename(f.filename) or "file"
+    ext = os.path.splitext(safe_name)[1].lower()
+    mime = (f.content_type or "").split(";")[0].strip()
+    is_image = mime in ALLOWED_IMAGE_MIMES and ext in ALLOWED_IMAGE_EXTS
+
+    data = f.read()
+    max_bytes = MAX_IMAGE_BYTES if is_image else MAX_FILE_BYTES
+    if len(data) > max_bytes:
+        limit_mb = max_bytes // (1024 * 1024)
+        return jsonify({"error": f"File too large (max {limit_mb} MB)"}), 400
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    file_id = str(uuid.uuid4())
+
+    # Encrypt and save file
+    encrypted = fernet.encrypt(data)
+    with open(os.path.join(UPLOAD_DIR, file_id), "wb") as fp:
+        fp.write(encrypted)
+
+    # Save metadata
+    meta = {"filename": safe_name, "content_type": mime, "uploader": current_user.username}
+    with open(os.path.join(UPLOAD_DIR, file_id + ".meta"), "w") as mf:
+        json.dump(meta, mf)
+
+    return jsonify({"file_id": file_id, "filename": safe_name,
+                    "type": "image" if is_image else "file"})
+
+
+@app.route("/file/<file_id>")
+@login_required
+def serve_file(file_id):
+    if not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', file_id):
+        return "Not found", 404
+
+    file_path = os.path.join(UPLOAD_DIR, file_id)
+    meta_path = os.path.join(UPLOAD_DIR, file_id + ".meta")
+    if not os.path.exists(file_path):
+        return "Not found", 404
+
+    filename = file_id
+    content_type = "application/octet-stream"
+    if os.path.exists(meta_path):
+        with open(meta_path) as mf:
+            meta = json.load(mf)
+        filename = meta.get("filename", file_id)
+        content_type = meta.get("content_type", "application/octet-stream")
+
+    with open(file_path, "rb") as fp:
+        decrypted = fernet.decrypt(fp.read())
+
+    is_inline = content_type in ALLOWED_IMAGE_MIMES
+    disposition = f'inline; filename="{filename}"' if is_inline else f'attachment; filename="{filename}"'
+    return Response(decrypted, content_type=content_type,
+                    headers={"Content-Disposition": disposition})
+
+
 # ================== SOCKET HANDLERS ==================
 @socketio.on("connect")
 def connect(auth=None):  # <-- Accepts optional auth argument
@@ -322,11 +397,21 @@ def request_history(data):
     for m in msgs:
         try:
             decrypted = decrypt_message(m.content, fernet)
+            attachment = None
+            display_text = f"{m.sender}: {decrypted}"
+            try:
+                md = json.loads(decrypted)
+                if isinstance(md, dict) and "__attach" in md:
+                    attachment = {"type": md["__attach"], "file_id": md["file_id"], "filename": md["filename"]}
+                    display_text = f"{m.sender}: "
+            except (json.JSONDecodeError, KeyError, TypeError):
+                pass
             history.append({
                 "id": m.id,
-                "msg": f"{m.sender}: {decrypted}",
+                "msg": display_text,
                 "is_global": m.is_global,
-                "timestamp": m.timestamp.isoformat() if m.timestamp else None
+                "timestamp": m.timestamp.isoformat() if m.timestamp else None,
+                "attachment": attachment
             })
         except Exception as e:
             print("Decrypt error:", e)
@@ -343,17 +428,35 @@ def request_history(data):
 
 @socketio.on("store_and_send")
 def store(data):
-    msg = data.get("msg")
+    msg = data.get("msg", "")
     target = data.get("target")
     sender = current_user.username
     is_global = target == GLOBAL_CHAT_ROOM
+
+    # Parse attachment before length check (attachments bypass char limit)
+    attachment = None
+    try:
+        md = json.loads(msg)
+        if isinstance(md, dict) and "__attach" in md:
+            attachment = {"type": md["__attach"], "file_id": md["file_id"], "filename": md["filename"]}
+    except (json.JSONDecodeError, KeyError, TypeError):
+        pass
+
+    # Enforce message length limit for non-admins and non-attachments
+    if attachment is None and not is_admin() and len(msg) > MAX_MSG_CHARS:
+        emit("error", {"msg": f"Message too long (max {MAX_MSG_CHARS} characters)"}, room=request.sid)
+        return
+
+    display_text = f"{sender}: " if attachment else f"{sender}: {msg}"
+
     encrypted = encrypt_message(msg)
     new_message = Message(sender=sender, recipient=target, content=encrypted, is_global=is_global)
     db.session.add(new_message)
     db.session.commit()
     new_msg_id = new_message.id
-    live = {"msg": f"{sender}: {msg}", "sender": sender, "recipient": target, "is_global": is_global,
-            "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else None}
+    live = {"msg": display_text, "sender": sender, "recipient": target, "is_global": is_global,
+            "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else None,
+            "attachment": attachment}
 
     if is_global:
         emit("live_message", live, room=GLOBAL_CHAT_ROOM)

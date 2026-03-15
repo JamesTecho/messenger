@@ -42,23 +42,9 @@ body {
     cursor: pointer;
 }
 
-#admin-btn {
-    background-color: #6c757d;
-    color: white;
-}
-
-#tos-link {
-    background-color: #6c757d;
-    color: white;
-}
-
-#logout-btn {
-    background-color: #dc3545;
-    color: white;
-}
-
-
-
+#admin-btn { background-color: #6c757d; color: white; }
+#tos-link  { background-color: #6c757d; color: white; }
+#logout-btn { background-color: #dc3545; color: white; }
 
 #main {
     display: flex;
@@ -67,7 +53,6 @@ body {
     border-radius: 6px;
     overflow: hidden;
 }
-
 
 #sidebar {
     width: 240px;
@@ -82,7 +67,6 @@ body {
     height: 100%;
 }
 
-
 #sidebar > ul:first-of-type {
     margin: 0 0 12px 0;
     padding: 0;
@@ -90,12 +74,7 @@ body {
     flex: 0 0 auto;
 }
 
-
-#sidebar h4 {
-    margin: 0 0 8px 0;
-    flex: 0 0 auto;
-}
-
+#sidebar h4 { margin: 0 0 8px 0; flex: 0 0 auto; }
 
 #dm-users {
     list-style: none;
@@ -104,7 +83,6 @@ body {
     overflow-y: auto;
     flex: 1 1 auto;
 }
-
 
 #dm-users li {
     padding: 10px;
@@ -116,27 +94,10 @@ body {
     text-overflow: ellipsis;
 }
 
-#sidebar ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-#sidebar li {
-    padding: 10px;
-    cursor: pointer;
-    border-radius: 4px;
-    margin-bottom: 4px;
-}
-
-#sidebar li:hover {
-    background: #e6e6e6;
-}
-
-#sidebar li.active {
-    background: #007bff;
-    color: white;
-}
+#sidebar ul { list-style: none; padding: 0; margin: 0; }
+#sidebar li { padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; }
+#sidebar li:hover { background: #e6e6e6; }
+#sidebar li.active { background: #007bff; color: white; }
 
 #chat-container {
     flex-grow: 1;
@@ -153,21 +114,21 @@ body {
     border-bottom: 1px solid #ccc;
 }
 
+/* ---- messages ---- */
 #chat .message {
-    max-width: 100%;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: anywhere;
     padding: 2px 0;
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: flex-start;
     gap: 8px;
 }
 
-#chat .message .msg-text {
+#chat .message .msg-content {
     flex: 1;
     min-width: 0;
+}
+
+#chat .message .msg-text {
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: anywhere;
@@ -178,8 +139,54 @@ body {
     color: #aaa;
     white-space: nowrap;
     flex-shrink: 0;
+    padding-top: 2px;
 }
 
+.show-more-btn {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0;
+    margin-top: 2px;
+    display: block;
+}
+
+.show-more-btn:hover { text-decoration: underline; }
+
+/* ---- images ---- */
+.msg-image {
+    max-width: 300px;
+    max-height: 260px;
+    border-radius: 6px;
+    display: block;
+    margin-top: 4px;
+    object-fit: contain;
+    background: #eee;
+}
+
+/* ---- file attachments ---- */
+.msg-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+    padding: 6px 10px;
+    background: #e9ecef;
+    border-radius: 6px;
+    color: #333;
+    text-decoration: none;
+    font-size: 13px;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.msg-file:hover { background: #d3d9df; }
+
+/* ---- date headers ---- */
 .date-header {
     text-align: center;
     margin: 12px 0 6px;
@@ -189,18 +196,35 @@ body {
     align-items: center;
     gap: 8px;
 }
-
-.date-header::before,
-.date-header::after {
+.date-header::before, .date-header::after {
     content: "";
     flex: 1;
     border-top: 1px solid #ddd;
 }
 
+/* ---- input area ---- */
+#input-wrapper {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #ccc;
+    background: white;
+}
+
+#char-counter {
+    font-size: 11px;
+    color: #aaa;
+    text-align: right;
+    padding: 2px 10px 0;
+    height: 16px;
+}
+
+#char-counter.warn { color: #e67e22; }
+#char-counter.over { color: #e74c3c; font-weight: bold; }
 
 #msgForm {
     display: flex;
     align-items: flex-end;
+    border-top: none;
 }
 
 #msg {
@@ -218,7 +242,20 @@ body {
     box-sizing: border-box;
 }
 
-#msgForm button {
+#attach-btn {
+    padding: 12px 14px;
+    background: #f0f0f0;
+    color: #555;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    align-self: stretch;
+    border-right: 1px solid #ddd;
+}
+
+#attach-btn:hover { background: #e0e0e0; }
+
+#send-btn {
     padding: 12px 20px;
     background: #007bff;
     color: white;
@@ -227,8 +264,13 @@ body {
     align-self: stretch;
 }
 
-#msgForm button:hover {
-    background: #0056b3;
+#send-btn:hover { background: #0056b3; }
+
+#attach-status {
+    font-size: 12px;
+    color: #555;
+    padding: 3px 12px;
+    min-height: 18px;
 }
 
 .badge {
@@ -243,7 +285,6 @@ body {
     text-align: center;
 }
 
-
 #tos-modal {
     display: none;
     position: fixed;
@@ -252,36 +293,6 @@ body {
     background: rgba(0,0,0,0.5);
     justify-content: center;
     align-items: center;
-}
-
-#tos-content {
-    background: white;
-    padding: 30px;
-    border-radius: 8px;
-    width: 80%;
-    max-width: 600px;
-    height: 80%;
-    overflow-y: auto;
-    position: relative;
-}
-
-#tos-content h3 {
-    margin-top: 0;
-}
-
-#tos-close {
-    position: absolute;
-    top: 10px; right: 10px;
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#tos-close:hover {
-    background: #c82333;
 }
 </style>
 </head>
@@ -312,10 +323,16 @@ body {
     <div id="chat-container">
         <button id="load-more-btn" style="display:none; width:100%;">Load older messages</button>
         <div id="chat"></div>
-        <form id="msgForm">
-            <textarea id="msg" placeholder="Message" rows="1"></textarea>
-            <button type="submit">Send</button>
-        </form>
+        <div id="input-wrapper">
+            <div id="char-counter"></div>
+            <div id="attach-status"></div>
+            <form id="msgForm">
+                <input type="file" id="fileInput" style="display:none">
+                <button type="button" id="attach-btn" title="Attach file">&#128206;</button>
+                <textarea id="msg" placeholder="Message" rows="1"></textarea>
+                <button type="submit" id="send-btn">Send</button>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -342,8 +359,7 @@ body {
         </p>
         <button id="tos-close" style="
             position:absolute;
-            top:10px;
-            right:10px;
+            top:10px; right:10px;
             padding:5px 10px;
             background:#ccc;
             border:none;
@@ -352,8 +368,6 @@ body {
         ">Close</button>
     </div>
 </div>
-
-
 
 <div id="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center;">
   <div style="background:white; padding:30px; border-radius:10px; width:400px;">
@@ -368,37 +382,36 @@ body {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 var socket = io();
-var chat = document.getElementById("chat");
-var msgInput = document.getElementById("msg");
-var userName = document.getElementById("current-user").textContent;
-var currentTarget = "global_chat";
-var oldestMessageId = null;
-var hasMoreHistory = true;
-var isLoadingHistory = false;
-var loadMoreBtn = document.getElementById("load-more-btn");
+var chat        = document.getElementById("chat");
+var msgInput    = document.getElementById("msg");
+var fileInput   = document.getElementById("fileInput");
+var attachStatus = document.getElementById("attach-status");
+var charCounter = document.getElementById("char-counter");
+var userName    = document.getElementById("current-user").textContent;
+var isAdmin     = {{ 'true' if is_user_admin else 'false' }};
+var MAX_CHARS   = 1000;
+var TRUNCATE_AT = 500;
 
+var currentTarget     = "global_chat";
+var oldestMessageId   = null;
+var hasMoreHistory    = true;
+var isLoadingHistory  = false;
+var loadMoreBtn       = document.getElementById("load-more-btn");
+
+// ---- admin create invite ----
 document.getElementById("create-invite").onclick = function() {
     var username = document.getElementById("new-username").value;
-
-    if (!username) {
-        alert("Enter a username");
-        return;
-    }
-
+    if (!username) { alert("Enter a username"); return; }
     fetch("/admin/create_invite", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "username=" + encodeURIComponent(username)
     })
     .then(res => res.text())
     .then(data => {
         if (data.startsWith("/invite/")) {
             document.getElementById("invite-output").textContent = location.origin + data;
-        } else {
-            alert(data);
-        }
+        } else { alert(data); }
     });
 };
 
@@ -418,29 +431,99 @@ function formatDateHeader(isoStr) {
 function getLocalDateKey(isoStr) {
     if (!isoStr) return "";
     var d = new Date(isoStr + (isoStr.endsWith("Z") ? "" : "Z"));
-    // YYYY-MM-DD in local time
     return d.getFullYear() + "-"
         + String(d.getMonth() + 1).padStart(2, "0") + "-"
         + String(d.getDate()).padStart(2, "0");
 }
 
 // ---------------- MESSAGE RENDERING ----------------
-function createMessageDiv(text, timestamp) {
-    var div = document.createElement("div");
-    div.className = "message";
-    var textSpan = document.createElement("span");
-    textSpan.className = "msg-text";
-    textSpan.textContent = text;
-    div.appendChild(textSpan);
+function buildTextContent(text) {
+    // Returns a fragment: either just a span, or truncated text + "Show more" button
+    var frag = document.createDocumentFragment();
+    if (text.length > TRUNCATE_AT) {
+        var preview = document.createElement("span");
+        preview.className = "msg-text";
+        preview.textContent = text.slice(0, TRUNCATE_AT) + "…";
+
+        var full = document.createElement("span");
+        full.className = "msg-text";
+        full.textContent = text;
+        full.style.display = "none";
+
+        var btn = document.createElement("button");
+        btn.className = "show-more-btn";
+        btn.textContent = "Show more…";
+        btn.onclick = function() {
+            var expanded = full.style.display !== "none";
+            full.style.display = expanded ? "none" : "";
+            preview.style.display = expanded ? "" : "none";
+            btn.textContent = expanded ? "Show more…" : "Show less";
+        };
+
+        frag.appendChild(preview);
+        frag.appendChild(full);
+        frag.appendChild(btn);
+    } else {
+        var span = document.createElement("span");
+        span.className = "msg-text";
+        span.textContent = text;
+        frag.appendChild(span);
+    }
+    return frag;
+}
+
+function createMessageDiv(text, timestamp, attachment) {
+    var outer = document.createElement("div");
+    outer.className = "message";
+
     if (timestamp) {
-        div.setAttribute("data-ts", timestamp);
-        div.setAttribute("data-date", getLocalDateKey(timestamp));
+        outer.setAttribute("data-ts", timestamp);
+        outer.setAttribute("data-date", getLocalDateKey(timestamp));
+    }
+
+    var content = document.createElement("div");
+    content.className = "msg-content";
+
+    if (attachment && attachment.type === "image") {
+        var senderSpan = document.createElement("span");
+        senderSpan.className = "msg-text";
+        senderSpan.textContent = text;   // "alice: "
+        content.appendChild(senderSpan);
+
+        var img = document.createElement("img");
+        img.className = "msg-image";
+        img.src = "/file/" + attachment.file_id;
+        img.alt = attachment.filename;
+        img.title = attachment.filename;
+        content.appendChild(img);
+
+    } else if (attachment && attachment.type === "file") {
+        var senderSpan = document.createElement("span");
+        senderSpan.className = "msg-text";
+        senderSpan.textContent = text;   // "alice: "
+        content.appendChild(senderSpan);
+
+        var link = document.createElement("a");
+        link.className = "msg-file";
+        link.href = "/file/" + attachment.file_id;
+        link.download = attachment.filename;
+        link.textContent = "\uD83D\uDCCE " + attachment.filename;
+        content.appendChild(link);
+
+    } else {
+        content.appendChild(buildTextContent(text));
+    }
+
+    outer.appendChild(content);
+
+    if (timestamp) {
         var timeSpan = document.createElement("span");
         timeSpan.className = "msg-time";
         timeSpan.textContent = formatTime(timestamp);
-        div.appendChild(timeSpan);
+        outer.appendChild(timeSpan);
     }
-    return div;
+
+    return outer;
 }
 
 function createDateHeaderDiv(isoStr) {
@@ -451,7 +534,6 @@ function createDateHeaderDiv(isoStr) {
     return div;
 }
 
-// Rebuild all date-header dividers based on current .message elements in DOM order.
 function rebuildDateHeaders() {
     chat.querySelectorAll(".date-header").forEach(function(el) { el.remove(); });
     var messages = chat.querySelectorAll(".message");
@@ -465,9 +547,7 @@ function rebuildDateHeaders() {
     });
 }
 
-function addMessage(text, timestamp) {
-    var div = createMessageDiv(text, timestamp);
-    // Check if we need a date header for this live message
+function addMessage(text, timestamp, attachment) {
     if (timestamp) {
         var dateKey = getLocalDateKey(timestamp);
         var allMsgs = chat.querySelectorAll(".message");
@@ -476,23 +556,23 @@ function addMessage(text, timestamp) {
             chat.appendChild(createDateHeaderDiv(timestamp));
         }
     }
-    chat.appendChild(div);
+    chat.appendChild(createMessageDiv(text, timestamp, attachment));
     chat.scrollTop = chat.scrollHeight;
 }
 
-function updateBadges(counts){
+// ---- badges ----
+function updateBadges(counts) {
     var globalBadge = document.getElementById("global-badge");
-    if(counts.global > 0){
+    if (counts.global > 0) {
         globalBadge.textContent = counts.global;
         globalBadge.style.display = "inline-block";
     } else {
         globalBadge.style.display = "none";
     }
-
-    document.querySelectorAll("#dm-users li").forEach(function(li){
-        var user = li.getAttribute("data-user");
+    document.querySelectorAll("#dm-users li").forEach(function(li) {
+        var user  = li.getAttribute("data-user");
         var badge = li.querySelector(".badge");
-        if(counts[user] > 0){
+        if (counts[user] > 0) {
             badge.textContent = counts[user];
             badge.style.display = "inline-block";
         } else {
@@ -511,7 +591,6 @@ function checkShowLoadMore() {
 
 // ---------------- SOCKET EVENTS ----------------
 socket.on("connect", function() {
-    console.log("CLIENT: connected, requesting initial global history and users");
     socket.emit("get_users");
     socket.emit("request_history", { target: currentTarget });
 });
@@ -520,114 +599,103 @@ socket.on("registered_users", function(users) {
     var list = document.getElementById("dm-users");
     list.innerHTML = "";
     users.forEach(function(u) {
-        if(u !== userName){
+        if (u !== userName) {
             var li = document.createElement("li");
             li.setAttribute("data-user", u);
             li.innerHTML = u + ' <span class="badge"></span>';
-            li.onclick = function(){
+            li.onclick = function() {
                 currentTarget = u;
-                document.querySelectorAll("#sidebar li, #dm-users li").forEach(x=>x.classList.remove("active"));
+                document.querySelectorAll("#sidebar li, #dm-users li").forEach(x => x.classList.remove("active"));
                 li.classList.add("active");
-
                 chat.innerHTML = "";
                 oldestMessageId = null;
-                hasMoreHistory = true;
-
+                hasMoreHistory  = true;
                 socket.emit("request_history", { target: currentTarget });
             };
-
             list.appendChild(li);
         }
     });
     checkShowLoadMore();
 });
 
-document.querySelector('#sidebar li[data-target="global_chat"]').onclick = function(){
+document.querySelector('#sidebar li[data-target="global_chat"]').onclick = function() {
     currentTarget = "global_chat";
-
-    document.querySelectorAll("#sidebar li, #dm-users li")
-        .forEach(x => x.classList.remove("active"));
-
+    document.querySelectorAll("#sidebar li, #dm-users li").forEach(x => x.classList.remove("active"));
     this.classList.add("active");
     chat.innerHTML = "";
     oldestMessageId = null;
-    hasMoreHistory = true;
-
+    hasMoreHistory  = true;
     socket.emit("request_history", { target: currentTarget });
     checkShowLoadMore();
 };
 
-socket.on("history", function(data){
+socket.on("history", function(data) {
     if (data.target !== currentTarget) return;
 
-    const previousScrollHeight = chat.scrollHeight;
-    const initialLoad = (oldestMessageId === null);
+    var previousScrollHeight = chat.scrollHeight;
+    var initialLoad = (oldestMessageId === null);
 
     if (initialLoad) {
-        data.messages.forEach(function(msg){
-            chat.appendChild(createMessageDiv(msg.msg, msg.timestamp));
+        data.messages.forEach(function(m) {
+            chat.appendChild(createMessageDiv(m.msg, m.timestamp, m.attachment));
         });
-        if (data.messages.length > 0) {
-            oldestMessageId = data.messages[0].id;
-        }
+        if (data.messages.length > 0) oldestMessageId = data.messages[0].id;
     } else {
         for (var i = data.messages.length - 1; i >= 0; i--) {
-            chat.insertBefore(createMessageDiv(data.messages[i].msg, data.messages[i].timestamp), chat.firstChild);
+            chat.insertBefore(createMessageDiv(data.messages[i].msg, data.messages[i].timestamp, data.messages[i].attachment), chat.firstChild);
         }
-        if (data.messages.length > 0) {
-            oldestMessageId = data.messages[0].id;
-        }
+        if (data.messages.length > 0) oldestMessageId = data.messages[0].id;
     }
 
     rebuildDateHeaders();
-
     hasMoreHistory = data.has_more;
 
     if (initialLoad) {
         chat.scrollTop = chat.scrollHeight;
     } else {
-        const newScrollHeight = chat.scrollHeight;
-        chat.scrollTop = newScrollHeight - previousScrollHeight;
+        chat.scrollTop = chat.scrollHeight - previousScrollHeight;
     }
 
     isLoadingHistory = false;
     checkShowLoadMore();
 });
 
-
-chat.addEventListener("scroll", function(){
-    if(chat.scrollTop === 0 && hasMoreHistory && !isLoadingHistory){
+chat.addEventListener("scroll", function() {
+    if (chat.scrollTop === 0 && hasMoreHistory && !isLoadingHistory) {
         isLoadingHistory = true;
-        socket.emit("request_history", {
-            target: currentTarget,
-            before_id: oldestMessageId
-        });
+        socket.emit("request_history", { target: currentTarget, before_id: oldestMessageId });
     }
 });
 
-socket.on("live_message", function(data){
-    if(
-        (data.is_global && currentTarget == "global_chat") ||
-        (!data.is_global && (data.sender == currentTarget || data.recipient == currentTarget))
-    ){
-        addMessage(data.msg, data.timestamp);
+socket.on("live_message", function(data) {
+    if (
+        (data.is_global && currentTarget === "global_chat") ||
+        (!data.is_global && (data.sender === currentTarget || data.recipient === currentTarget))
+    ) {
+        addMessage(data.msg, data.timestamp, data.attachment);
     }
 });
 
-socket.on("unread_counts", function(counts){
-    updateBadges(counts);
-});
+socket.on("unread_counts", function(counts) { updateBadges(counts); });
+
+socket.on("error", function(data) { alert(data.msg); });
 
 // ---------------- MESSAGE INPUT ----------------
 function submitMessage() {
     var text = msgInput.value.trim();
     if (text === "") return;
+    if (!isAdmin && text.length > MAX_CHARS) {
+        alert("Message too long (max " + MAX_CHARS + " characters).");
+        return;
+    }
     socket.emit("store_and_send", { msg: text, target: currentTarget });
     msgInput.value = "";
     msgInput.style.height = "auto";
+    charCounter.textContent = "";
+    charCounter.className = "";
 }
 
-document.getElementById("msgForm").onsubmit = function(e){
+document.getElementById("msgForm").onsubmit = function(e) {
     e.preventDefault();
     submitMessage();
 };
@@ -642,24 +710,77 @@ msgInput.addEventListener("keydown", function(e) {
 msgInput.addEventListener("input", function() {
     this.style.height = "auto";
     this.style.height = Math.min(this.scrollHeight, 160) + "px";
+
+    var len = this.value.length;
+    if (len === 0) {
+        charCounter.textContent = "";
+        charCounter.className = "";
+    } else if (!isAdmin) {
+        charCounter.textContent = len + " / " + MAX_CHARS;
+        charCounter.className = len > MAX_CHARS ? "over" : len > MAX_CHARS * 0.8 ? "warn" : "";
+    }
+});
+
+// ---------------- FILE ATTACHMENT ----------------
+var MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+var MAX_FILE_BYTES  = 20 * 1024 * 1024;
+var IMAGE_EXTS      = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+
+document.getElementById("attach-btn").onclick = function() {
+    fileInput.value = "";
+    fileInput.click();
+};
+
+fileInput.addEventListener("change", function() {
+    if (!this.files.length) return;
+    var file = this.files[0];
+    var ext  = file.name.lastIndexOf(".") >= 0
+               ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase()
+               : "";
+    var isImage  = IMAGE_EXTS.has(ext) && file.type.startsWith("image/");
+    var maxBytes = isImage ? MAX_IMAGE_BYTES : MAX_FILE_BYTES;
+
+    if (file.size > maxBytes) {
+        var limitMB = maxBytes / (1024 * 1024);
+        alert("File too large. Max " + limitMB + " MB for " + (isImage ? "images" : "files") + ".");
+        this.value = "";
+        return;
+    }
+
+    attachStatus.textContent = "Uploading " + file.name + "…";
+
+    var formData = new FormData();
+    formData.append("file", file);
+
+    fetch("/upload", { method: "POST", body: formData })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            attachStatus.textContent = "";
+            if (data.error) { alert(data.error); return; }
+            var payload = JSON.stringify({ __attach: data.type, file_id: data.file_id, filename: data.filename });
+            socket.emit("store_and_send", { msg: payload, target: currentTarget });
+        })
+        .catch(function() {
+            attachStatus.textContent = "";
+            alert("Upload failed. Please try again.");
+        });
+
+    this.value = "";
 });
 
 // ---------------- TOS MODAL ----------------
-document.getElementById("tos-link").onclick = function(e){
+document.getElementById("tos-link").onclick = function(e) {
     e.preventDefault();
     document.getElementById("tos-modal").style.display = "flex";
 };
-document.getElementById("tos-close").onclick = function(){
+document.getElementById("tos-close").onclick = function() {
     document.getElementById("tos-modal").style.display = "none";
 };
 
 loadMoreBtn.onclick = function() {
     if (!isLoadingHistory && hasMoreHistory) {
         isLoadingHistory = true;
-        socket.emit("request_history", {
-            target: currentTarget,
-            before_id: oldestMessageId
-        });
+        socket.emit("request_history", { target: currentTarget, before_id: oldestMessageId });
     }
 };
 </script>
