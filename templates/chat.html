@@ -556,8 +556,15 @@ function addMessage(text, timestamp, attachment) {
             chat.appendChild(createDateHeaderDiv(timestamp));
         }
     }
-    chat.appendChild(createMessageDiv(text, timestamp, attachment));
+    var div = createMessageDiv(text, timestamp, attachment);
+    chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
+    // Re-scroll after image loads in case it pushed content down
+    var img = div.querySelector(".msg-image");
+    if (img && !img.complete) {
+        img.addEventListener("load",  function() { chat.scrollTop = chat.scrollHeight; }, { once: true });
+        img.addEventListener("error", function() { chat.scrollTop = chat.scrollHeight; }, { once: true });
+    }
 }
 
 // ---- badges ----
@@ -652,8 +659,20 @@ socket.on("history", function(data) {
 
     if (initialLoad) {
         chat.scrollTop = chat.scrollHeight;
+        // Images aren't sized until they load, so scrollHeight is initially too small.
+        // Re-scroll to bottom each time one finishes loading.
+        chat.querySelectorAll(".msg-image").forEach(function(img) {
+            if (!img.complete) {
+                img.addEventListener("load",  function() { chat.scrollTop = chat.scrollHeight; }, { once: true });
+                img.addEventListener("error", function() { chat.scrollTop = chat.scrollHeight; }, { once: true });
+            }
+        });
     } else {
-        chat.scrollTop = chat.scrollHeight - previousScrollHeight;
+        // Preserve the viewport position after prepending older messages.
+        // Capture heights after images load too, but a simple rAF is enough here
+        // since prepended images are above the fold and don't shift the visible area.
+        var target = chat.scrollHeight - previousScrollHeight;
+        chat.scrollTop = target;
     }
 
     isLoadingHistory = false;
