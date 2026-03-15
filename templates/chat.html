@@ -13,24 +13,24 @@ body {
 
 #top-bar {
     display: flex;
-    justify-content: space-between;  
-    align-items: center;             
+    justify-content: space-between;
+    align-items: center;
     padding: 10px 20px;
     background-color: #f5f5f5;
-    height: 60px;                    
+    height: 60px;
     box-sizing: border-box;
 }
 
 #top-right {
     display: flex;
-    gap: 10px;                       
-    align-items: center;             
+    gap: 10px;
+    align-items: center;
 }
 
 #top-right a, #top-right button {
-    height: 36px;                 
-    min-width: 80px;              
-    padding: 0 12px;             
+    height: 36px;
+    min-width: 80px;
+    padding: 0 12px;
     font-size: 14px;
     border: none;
     border-radius: 4px;
@@ -71,6 +71,8 @@ body {
 
 #sidebar {
     width: 240px;
+    min-width: 240px;
+    flex-shrink: 0;
     border-right: 1px solid #ccc;
     padding: 10px;
     background: #fafafa;
@@ -85,7 +87,7 @@ body {
     margin: 0 0 12px 0;
     padding: 0;
     list-style: none;
-    flex: 0 0 auto; 
+    flex: 0 0 auto;
 }
 
 
@@ -100,7 +102,7 @@ body {
     padding: 0;
     margin: 0;
     overflow-y: auto;
-    flex: 1 1 auto; 
+    flex: 1 1 auto;
 }
 
 
@@ -140,6 +142,7 @@ body {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 #chat {
@@ -150,16 +153,54 @@ body {
     border-bottom: 1px solid #ccc;
 }
 
-#chat div {
+#chat .message {
     max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    padding: 2px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+#chat .message .msg-text {
+    flex: 1;
+    min-width: 0;
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: anywhere;
 }
 
+#chat .message .msg-time {
+    font-size: 11px;
+    color: #aaa;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.date-header {
+    text-align: center;
+    margin: 12px 0 6px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.date-header::before,
+.date-header::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid #ddd;
+}
+
 
 #msgForm {
     display: flex;
+    align-items: flex-end;
 }
 
 #msg {
@@ -168,6 +209,13 @@ body {
     border: none;
     outline: none;
     font-size: 16px;
+    font-family: Arial;
+    resize: none;
+    min-height: 44px;
+    max-height: 160px;
+    overflow-y: auto;
+    line-height: 1.4;
+    box-sizing: border-box;
 }
 
 #msgForm button {
@@ -176,6 +224,7 @@ body {
     color: white;
     border: none;
     cursor: pointer;
+    align-self: stretch;
 }
 
 #msgForm button:hover {
@@ -241,7 +290,7 @@ body {
 <div id="top-bar">
     <span>Logged in as <b id="current-user">{{ current_user.username }}</b></span>
     <div id="top-right">
-        {% if is_user_admin %} 
+        {% if is_user_admin %}
         <a id="admin-btn" href="/admin" class="btn">Admin</a>
         {% endif %}
         <a href="#" id="tos-link">Terms of Service</a>
@@ -264,20 +313,20 @@ body {
         <button id="load-more-btn" style="display:none; width:100%;">Load older messages</button>
         <div id="chat"></div>
         <form id="msgForm">
-            <input id="msg" placeholder="Message" autocomplete="off">
-            <button>Send</button>
+            <textarea id="msg" placeholder="Message" rows="1"></textarea>
+            <button type="submit">Send</button>
         </form>
     </div>
 </div>
 
 <!-- TOS Modal -->
-<div id="tos-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+<div id="tos-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
     background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
     <div style="
-        background:white; 
-        padding:20px 30px; 
-        border-radius:8px; 
-        max-width:500px; 
+        background:white;
+        padding:20px 30px;
+        border-radius:8px;
+        max-width:500px;
         width:auto;
         height:auto;
         max-height:90%;
@@ -292,13 +341,13 @@ body {
             Violations may result in account suspension or banning.
         </p>
         <button id="tos-close" style="
-            position:absolute; 
-            top:10px; 
-            right:10px; 
-            padding:5px 10px; 
-            background:#ccc; 
-            border:none; 
-            border-radius:4px; 
+            position:absolute;
+            top:10px;
+            right:10px;
+            padding:5px 10px;
+            background:#ccc;
+            border:none;
+            border-radius:4px;
             cursor:pointer;
         ">Close</button>
     </div>
@@ -353,9 +402,80 @@ document.getElementById("create-invite").onclick = function() {
     });
 };
 
-function addMessage(text){
+// ---------------- TIMESTAMP HELPERS ----------------
+function formatTime(isoStr) {
+    if (!isoStr) return "";
+    var d = new Date(isoStr + (isoStr.endsWith("Z") ? "" : "Z"));
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDateHeader(isoStr) {
+    if (!isoStr) return "";
+    var d = new Date(isoStr + (isoStr.endsWith("Z") ? "" : "Z"));
+    return d.toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+
+function getLocalDateKey(isoStr) {
+    if (!isoStr) return "";
+    var d = new Date(isoStr + (isoStr.endsWith("Z") ? "" : "Z"));
+    // YYYY-MM-DD in local time
+    return d.getFullYear() + "-"
+        + String(d.getMonth() + 1).padStart(2, "0") + "-"
+        + String(d.getDate()).padStart(2, "0");
+}
+
+// ---------------- MESSAGE RENDERING ----------------
+function createMessageDiv(text, timestamp) {
     var div = document.createElement("div");
-    div.textContent = text;
+    div.className = "message";
+    var textSpan = document.createElement("span");
+    textSpan.className = "msg-text";
+    textSpan.textContent = text;
+    div.appendChild(textSpan);
+    if (timestamp) {
+        div.setAttribute("data-ts", timestamp);
+        div.setAttribute("data-date", getLocalDateKey(timestamp));
+        var timeSpan = document.createElement("span");
+        timeSpan.className = "msg-time";
+        timeSpan.textContent = formatTime(timestamp);
+        div.appendChild(timeSpan);
+    }
+    return div;
+}
+
+function createDateHeaderDiv(isoStr) {
+    var div = document.createElement("div");
+    div.className = "date-header";
+    div.setAttribute("data-date-header", getLocalDateKey(isoStr));
+    div.textContent = formatDateHeader(isoStr);
+    return div;
+}
+
+// Rebuild all date-header dividers based on current .message elements in DOM order.
+function rebuildDateHeaders() {
+    chat.querySelectorAll(".date-header").forEach(function(el) { el.remove(); });
+    var messages = chat.querySelectorAll(".message");
+    var lastDate = null;
+    messages.forEach(function(msg) {
+        var dateKey = msg.getAttribute("data-date");
+        if (dateKey && dateKey !== lastDate) {
+            chat.insertBefore(createDateHeaderDiv(msg.getAttribute("data-ts")), msg);
+            lastDate = dateKey;
+        }
+    });
+}
+
+function addMessage(text, timestamp) {
+    var div = createMessageDiv(text, timestamp);
+    // Check if we need a date header for this live message
+    if (timestamp) {
+        var dateKey = getLocalDateKey(timestamp);
+        var allMsgs = chat.querySelectorAll(".message");
+        var lastMsg = allMsgs.length > 0 ? allMsgs[allMsgs.length - 1] : null;
+        if (!lastMsg || lastMsg.getAttribute("data-date") !== dateKey) {
+            chat.appendChild(createDateHeaderDiv(timestamp));
+        }
+    }
     chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
 }
@@ -382,7 +502,6 @@ function updateBadges(counts){
 }
 
 function checkShowLoadMore() {
-    // Show the button if chat is not scrollable and there is more history
     if (chat.scrollHeight <= chat.clientHeight && hasMoreHistory && chat.children.length > 0) {
         loadMoreBtn.style.display = "block";
     } else {
@@ -442,45 +561,31 @@ socket.on("history", function(data){
     if (data.target !== currentTarget) return;
 
     const previousScrollHeight = chat.scrollHeight;
-    const previousScrollTop = chat.scrollTop;
-    const wasEmpty = (chat.children.length === 0);
     const initialLoad = (oldestMessageId === null);
 
-    // Messages from the server are in chronological order (oldest -> newest).
-    // On the initial load we should append them to the bottom so newest is last.
-    // When loading older messages (pagination), we should prepend them to the top.
     if (initialLoad) {
-        // Append messages in order
         data.messages.forEach(function(msg){
-            var div = document.createElement("div");
-            div.textContent = msg.msg;
-            chat.appendChild(div);
+            chat.appendChild(createMessageDiv(msg.msg, msg.timestamp));
         });
         if (data.messages.length > 0) {
-            // oldestMessageId should point to the earliest (top) message's id
             oldestMessageId = data.messages[0].id;
         }
     } else {
-        // Prepend older messages so they appear above the existing ones
-        data.messages.forEach(function(msg){
-            var div = document.createElement("div");
-            div.textContent = msg.msg;
-            chat.insertBefore(div, chat.firstChild);
-        });
+        for (var i = data.messages.length - 1; i >= 0; i--) {
+            chat.insertBefore(createMessageDiv(data.messages[i].msg, data.messages[i].timestamp), chat.firstChild);
+        }
         if (data.messages.length > 0) {
-            // Update oldestMessageId to the new topmost message
             oldestMessageId = data.messages[0].id;
         }
     }
 
+    rebuildDateHeaders();
+
     hasMoreHistory = data.has_more;
 
-    // Maintain scroll position:
     if (initialLoad) {
-        // On initial load, scroll to bottom to show latest messages
         chat.scrollTop = chat.scrollHeight;
     } else {
-        // When prepending older messages, keep the user's viewport stable
         const newScrollHeight = chat.scrollHeight;
         chat.scrollTop = newScrollHeight - previousScrollHeight;
     }
@@ -505,7 +610,7 @@ socket.on("live_message", function(data){
         (data.is_global && currentTarget == "global_chat") ||
         (!data.is_global && (data.sender == currentTarget || data.recipient == currentTarget))
     ){
-        addMessage(data.msg);
+        addMessage(data.msg, data.timestamp);
     }
 });
 
@@ -513,12 +618,31 @@ socket.on("unread_counts", function(counts){
     updateBadges(counts);
 });
 
+// ---------------- MESSAGE INPUT ----------------
+function submitMessage() {
+    var text = msgInput.value.trim();
+    if (text === "") return;
+    socket.emit("store_and_send", { msg: text, target: currentTarget });
+    msgInput.value = "";
+    msgInput.style.height = "auto";
+}
+
 document.getElementById("msgForm").onsubmit = function(e){
     e.preventDefault();
-    if(msgInput.value.trim() === "") return;
-    socket.emit("store_and_send", {msg: msgInput.value, target: currentTarget});
-    msgInput.value = "";
+    submitMessage();
 };
+
+msgInput.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        submitMessage();
+    }
+});
+
+msgInput.addEventListener("input", function() {
+    this.style.height = "auto";
+    this.style.height = Math.min(this.scrollHeight, 160) + "px";
+});
 
 // ---------------- TOS MODAL ----------------
 document.getElementById("tos-link").onclick = function(e){

@@ -26,6 +26,7 @@ GLOBAL_CHAT_ROOM = "global_chat"
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 ONLINE_USERS = {}
+CURRENT_OPEN = {}  # tracks which conversation each user currently has open
 unread = {}
 
 
@@ -298,6 +299,7 @@ def request_history(data):
         if not before_id:
             last_from_others = max((m.id for m in msgs if m.sender != user), default=0)
             set_last_read(user, "global", last_from_others)
+            CURRENT_OPEN[user] = target
 
     else:
         query = Message.query.filter(
@@ -314,6 +316,7 @@ def request_history(data):
         if not before_id:
             last_from_target = max((m.id for m in msgs if m.sender == target), default=0)
             set_last_read(user, target, last_from_target)
+            CURRENT_OPEN[user] = target
 
     history = []
     for m in msgs:
@@ -322,7 +325,8 @@ def request_history(data):
             history.append({
                 "id": m.id,
                 "msg": f"{m.sender}: {decrypted}",
-                "is_global": m.is_global
+                "is_global": m.is_global,
+                "timestamp": m.timestamp.isoformat() if m.timestamp else None
             })
         except Exception as e:
             print("Decrypt error:", e)
@@ -344,22 +348,32 @@ def store(data):
     sender = current_user.username
     is_global = target == GLOBAL_CHAT_ROOM
     encrypted = encrypt_message(msg)
-    db.session.add(Message(sender=sender, recipient=target, content=encrypted, is_global=is_global))
+    new_message = Message(sender=sender, recipient=target, content=encrypted, is_global=is_global)
+    db.session.add(new_message)
     db.session.commit()
-    live = {"msg": f"{sender}: {msg}", "sender": sender, "recipient": target, "is_global": is_global}
+    new_msg_id = new_message.id
+    live = {"msg": f"{sender}: {msg}", "sender": sender, "recipient": target, "is_global": is_global,
+            "timestamp": new_message.timestamp.isoformat() if new_message.timestamp else None}
 
     if is_global:
         emit("live_message", live, room=GLOBAL_CHAT_ROOM)
         for u, sid in ONLINE_USERS.items():
             if u != sender:
-                socketio.emit("unread_counts", get_unread_counts(u, current_open=None), room=sid)
+                if CURRENT_OPEN.get(u) == GLOBAL_CHAT_ROOM:
+                    set_last_read(u, "global", new_msg_id)
+                socketio.emit("unread_counts", get_unread_counts(u, current_open=CURRENT_OPEN.get(u)), room=sid)
     else:
         recipient_sid = ONLINE_USERS.get(target)
         emit("live_message", live, room=request.sid)
+        # Sender is actively in this chat, keep their last_read current
+        set_last_read(sender, target, new_msg_id)
         if recipient_sid:
             emit("live_message", live, room=recipient_sid)
-            socketio.emit("unread_counts", get_unread_counts(target, current_open=target), room=recipient_sid)
-        socketio.emit("unread_counts", get_unread_counts(sender, current_open=target), room=request.sid)
+            # If recipient has this conversation open, mark it as read for them too
+            if CURRENT_OPEN.get(target) == sender:
+                set_last_read(target, sender, new_msg_id)
+            socketio.emit("unread_counts", get_unread_counts(target, current_open=CURRENT_OPEN.get(target)), room=recipient_sid)
+        socketio.emit("unread_counts", get_unread_counts(sender, current_open=CURRENT_OPEN.get(sender)), room=request.sid)
 
 @socketio.on("get_users")
 def get_users():
